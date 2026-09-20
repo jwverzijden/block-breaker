@@ -187,9 +187,22 @@
     };
   }
 
+  // Scale the miner (and its reach) with the arena, so it stays a consistent size
+  // relative to the blocks no matter the screen dimensions. 24px is a typical
+  // desktop block cell size, so at that size the miner is unchanged.
+  function minerScale() {
+    const cell = Math.min(layout.cw, layout.ch);
+    if (cell <= 0) return 1;
+    return Math.max(0.25, cell / 24);
+  }
+
+  function minerRadius() {
+    return C.minerRadius * minerScale();
+  }
+
   function swingRange() {
     const cell = Math.min(layout.cw, layout.ch);
-    return Math.max(90, cell * C.swingRangeCells);
+    return cell * C.swingRangeCells;
   }
 
   function initMiner() {
@@ -201,6 +214,11 @@
   function resize() {
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
+
+    // remember the miner's relative position so a resize keeps it in the same spot
+    const nx = view.w > 0 ? state.miner.x / view.w : 0.5;
+    const ny = view.h > 0 ? state.miner.y / view.h : 0.5;
+
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     canvas.width = Math.round(rect.width * dpr);
     canvas.height = Math.round(rect.height * dpr);
@@ -220,10 +238,10 @@
     layout.ox = (view.w - layout.fw) / 2;
     layout.oy = (view.h - layout.fh) / 2;
 
-    // keep miner & cursor on-screen
-    const r = C.minerRadius;
-    state.miner.x = clamp(state.miner.x, r, view.w - r);
-    state.miner.y = clamp(state.miner.y, r, view.h - r);
+    // keep miner & cursor on-screen, restoring the miner to its relative position
+    const r = minerRadius();
+    state.miner.x = clamp(nx * view.w, r, view.w - r);
+    state.miner.y = clamp(ny * view.h, r, view.h - r);
     cursor.x = clamp(cursor.x, 0, view.w);
     cursor.y = clamp(cursor.y, 0, view.h);
   }
@@ -457,7 +475,7 @@
       const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
       const dx = cx - m.x, dy = cy - m.y;
       const d = Math.hypot(dx, dy);
-      const rad = Math.max(r.w, r.h) / 2 + C.minerRadius;
+      const rad = Math.max(r.w, r.h) / 2 + minerRadius();
       if (d > range + rad) continue;
       if (d < 0.001) continue;
       const ang = Math.atan2(dy, dx);
@@ -628,7 +646,7 @@
       ax /= len; ay /= len;
       m.x += ax * C.minerSpeed * dt;
       m.y += ay * C.minerSpeed * dt;
-      const r = C.minerRadius;
+      const r = minerRadius();
       m.x = clamp(m.x, r, view.w - r);
       m.y = clamp(m.y, r, view.h - r);
     }
@@ -916,48 +934,55 @@
   function drawMiner() {
     const m = state.miner;
     const facing = m.facing;
+    const sc = minerScale();
+
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    ctx.scale(sc, sc);
 
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath();
-    ctx.ellipse(m.x, m.y + 14, 13, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 14, 13, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    drawPickaxe(m.x, m.y - 4, pickaxeAngle());
+    drawPickaxe(0, -4, pickaxeAngle());
 
     ctx.fillStyle = '#4e7dc4';
-    roundRectPath(ctx, m.x - 9, m.y - 4, 18, 22, 6);
+    roundRectPath(ctx, -9, -4, 18, 22, 6);
     ctx.fill();
     ctx.strokeStyle = '#33527f';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
     ctx.fillStyle = '#3a3f4a';
-    roundRectPath(ctx, m.x - 9, m.y + 10, 18, 5, 2);
+    roundRectPath(ctx, -9, 10, 18, 5, 2);
     ctx.fill();
 
     ctx.fillStyle = '#f2c9a0';
     ctx.beginPath();
-    ctx.arc(m.x, m.y - 12, 8, 0, Math.PI * 2);
+    ctx.arc(0, -12, 8, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = '#2a2118';
-    const ex = m.x + facing * 3;
-    ctx.beginPath(); ctx.arc(ex - 2, m.y - 13, 1.4, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(ex + 2, m.y - 13, 1.4, 0, Math.PI * 2); ctx.fill();
+    const ex = facing * 3;
+    ctx.beginPath(); ctx.arc(ex - 2, -13, 1.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + 2, -13, 1.4, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = '#f2b33d';
     ctx.beginPath();
-    ctx.arc(m.x, m.y - 13, 9, Math.PI, Math.PI * 2);
+    ctx.arc(0, -13, 9, Math.PI, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#b8791c';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    const lx = m.x + facing * 7, ly = m.y - 15;
+    const lx = facing * 7, ly = -15;
     ctx.fillStyle = 'rgba(255,243,176,0.35)';
     ctx.beginPath(); ctx.arc(lx, ly, 5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff3b0';
     ctx.beginPath(); ctx.arc(lx, ly, 2.6, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
   }
 
   function drawDmgTexts() {
@@ -1493,7 +1518,7 @@
     state.autosaveT = 0;
     showScreen('play');
     resize();
-    const r = C.minerRadius;
+    const r = minerRadius();
     if (data.miner) {
       state.miner.x = clamp((data.miner.nx || 0.5) * view.w, r, view.w - r);
       state.miner.y = clamp((data.miner.ny || 0.5) * view.h, r, view.h - r);
