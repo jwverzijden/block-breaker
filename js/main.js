@@ -76,6 +76,7 @@
     banner: null,
     levelComplete: false,
     pendingLevelComplete: null,
+    fieldCleared: false,
     totalCubes: 0,
     levelCubes: 0,
     levelStartTime: 0,
@@ -262,6 +263,7 @@
       totalCubes: state.totalCubes,
       levelCubes: state.levelCubes,
       levelStartTime: state.levelStartTime,
+      fieldCleared: state.fieldCleared,
       miner: { nx: state.miner.x / Math.max(1, view.w), ny: state.miner.y / Math.max(1, view.h) },
       blocks: state.blocks.map(function (b) {
         return { col: b.col, row: b.row, hp: b.hp, maxHp: b.maxHp, alive: b.alive, burnT: b.burnT, burnDps: b.burnDps, acidT: b.acidT, acidPct: b.acidPct, type: b.type };
@@ -289,6 +291,7 @@
     state.totalCubes = data.totalCubes || 0;
     state.levelCubes = data.levelCubes || 0;
     state.levelStartTime = data.levelStartTime || 0;
+    state.fieldCleared = !!data.fieldCleared;
     state.stats = data.stats || { blocksBroken: 0, playTime: 0 };
 
     if (data.blocks && data.blocks.length) {
@@ -303,10 +306,11 @@
       });
     } else {
       generateLevel();
+      state.fieldCleared = false;
       return;
     }
     state.blocksRemaining = state.blocks.filter(function (b) { return b.alive; }).length;
-    if (state.blocksRemaining <= 0) generateLevel();
+    if (state.blocksRemaining <= 0 && !state.fieldCleared) generateLevel();
   }
 
   function resetTransient() {
@@ -336,6 +340,7 @@
     addText(r.x + r.w / 2, r.y, '+' + fmtNum(gain), '#ffd54a');
     Audio.play('break');
     if (state.blocksRemaining <= 0) {
+      state.fieldCleared = true;
       state.pendingLevelComplete = 0.3; // let the break effect play out before the overlay
     }
     updateStats();
@@ -1444,7 +1449,7 @@
     if (name !== 'play') elLevelOverlay.classList.remove('visible');
   }
 
-  function showLevelComplete() {
+  function showLevelComplete(silent) {
     const duration = state.stats.playTime - state.levelStartTime;
     elOvTitle.textContent = 'Level ' + state.level + ' Complete!';
     elOvTime.textContent = formatDuration(duration);
@@ -1452,12 +1457,13 @@
     elOvTotal.textContent = fmt(state.totalCubes);
     elLevelOverlay.classList.add('visible');
     state.levelComplete = true;
-    Audio.play('levelup');
+    if (!silent) Audio.play('levelup');
   }
 
   function startNextLevel() {
     state.level++;
     state.levelComplete = false;
+    state.fieldCleared = false;
     elLevelOverlay.classList.remove('visible');
     generateLevel();
     state.levelStartTime = state.stats.playTime;
@@ -1498,6 +1504,7 @@
     state.levelCubes = 0;
     state.levelStartTime = 0;
     state.levelComplete = false;
+    state.fieldCleared = false;
     state.stats = { blocksBroken: 0, playTime: 0 };
     state.autosaveT = 0;
     showScreen('play');
@@ -1526,9 +1533,14 @@
       initMiner();
     }
     cursor.inside = false;
-    state.levelComplete = false;
-    elLevelOverlay.classList.remove('visible');
     renderShop();
+    if (state.fieldCleared) {
+      // the field was empty when saved — re-show the level-complete overlay
+      showLevelComplete(true);
+    } else {
+      state.levelComplete = false;
+      elLevelOverlay.classList.remove('visible');
+    }
   }
 
   function updateSoundButton() {
