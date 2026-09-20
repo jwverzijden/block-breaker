@@ -1162,163 +1162,129 @@
   }
 
   function renderUpgrades() {
+    function statLine(label, cur, next) {
+      let v;
+      if (cur === null) v = next;
+      else if (next === null) v = cur;
+      else v = cur + ' \u2192 ' + next;
+      return '<div>' + label + ': <span class="fx">' + v + '</span></div>';
+    }
+
     // Fire
     const maxF = C.fire.length;
     const fLevel = state.fireLevel;
     const fireMaxed = fLevel >= maxF;
-    let fireBody, fireCost;
-    if (fireMaxed) {
-      const f = C.fire[maxF - 1];
-      fireBody = 'Ignites blocks for <span class="fx">' + f.burnDps + ' dmg/s</span> over ' + f.duration + 's.';
-      fireCost = '<span class="card-cost" style="color:var(--green)">MAX</span>';
-    } else {
-      const next = C.fire[fLevel];
-      const can = state.cubes >= next.cost;
-      if (fLevel === 0) {
-        fireBody = 'Ignite blocks on hit: <span class="fx">' + next.burnDps + ' dmg/s</span> for ' + next.duration + 's.';
-      } else {
-        const cur = C.fire[fLevel - 1];
-        fireBody = '<span class="fx">' + cur.burnDps + ' \u2192 ' + next.burnDps + ' dmg/s</span> burn, ' + next.duration + 's.';
-      }
-      fireCost = '<span class="card-cost">' + fmt(next.cost) + ' <span class="cube">cubes</span></span>' +
-        '<button class="btn btn-success" data-buy-fire="1"' + (can ? '' : ' disabled') + '>Buy</button>';
-    }
+    const curF = fLevel > 0 ? C.fire[fLevel - 1] : null;
+    const nextF = fireMaxed ? null : C.fire[fLevel];
+    const fireBody =
+      statLine('Burn', curF ? curF.burnDps + ' dmg/s' : null, nextF ? nextF.burnDps + ' dmg/s' : null) +
+      statLine('Duration', curF ? curF.duration + 's' : null, nextF ? nextF.duration + 's' : null);
+    const canF = !fireMaxed && state.cubes >= C.fire[fLevel].cost;
+    const fireCost = fireMaxed
+      ? '<span class="card-cost" style="color:var(--green)">MAX</span>'
+      : '<span class="card-cost">' + fmt(C.fire[fLevel].cost) + ' <span class="cube">cubes</span></span>' +
+        '<button class="btn btn-success" data-buy-fire="1"' + (canF ? '' : ' disabled') + '>Buy</button>';
     const fireCard = upgradeCard(
       fireIcon(C.fire[Math.min(fLevel, maxF - 1)].color),
-      'Fire', fLevel, maxF, fireBody, fireCost, !fireMaxed && state.cubes >= C.fire[fLevel].cost
+      'Fire', fLevel, maxF, fireBody, fireCost, canF
     );
 
     // Lightning
     const maxL = C.lightning.length;
     const lLevel = state.lightningLevel;
     const lightMaxed = lLevel >= maxL;
-    let lightBody, lightCost;
-    if (lightMaxed) {
-      const L = C.lightning[maxL - 1];
-      lightBody = Math.round(L.chance * 100) + '% chance to chain <span class="fx">' + L.dmg + ' dmg</span> to ' + L.chain + ' blocks.';
-      lightCost = '<span class="card-cost" style="color:var(--green)">MAX</span>';
-    } else {
-      const next = C.lightning[lLevel];
-      const can = state.cubes >= next.cost;
-      if (lLevel === 0) {
-        lightBody = Math.round(next.chance * 100) + '% chance to chain <span class="fx">' + next.dmg + ' dmg</span> to ' + next.chain + ' blocks.';
-      } else {
-        const cur = C.lightning[lLevel - 1];
-        lightBody = Math.round(cur.chance * 100) + '% \u2192 <span class="fx">' + Math.round(next.chance * 100) + '%</span> chance, <span class="fx">' + next.dmg + ' dmg</span>, ' + next.chain + ' targets.';
-      }
-      lightCost = '<span class="card-cost">' + fmt(next.cost) + ' <span class="cube">cubes</span></span>' +
-        '<button class="btn btn-success" data-buy-light="1"' + (can ? '' : ' disabled') + '>Buy</button>';
-    }
+    const curL = lLevel > 0 ? C.lightning[lLevel - 1] : null;
+    const nextL = lightMaxed ? null : C.lightning[lLevel];
+    const lightBody =
+      statLine('Chance', curL ? Math.round(curL.chance * 100) + '%' : null, nextL ? Math.round(nextL.chance * 100) + '%' : null) +
+      statLine('Damage', curL ? String(curL.dmg) : null, nextL ? String(nextL.dmg) : null) +
+      statLine('Chains', curL ? String(curL.chain) : null, nextL ? String(nextL.chain) : null);
+    const canL = !lightMaxed && state.cubes >= C.lightning[lLevel].cost;
+    const lightCost = lightMaxed
+      ? '<span class="card-cost" style="color:var(--green)">MAX</span>'
+      : '<span class="card-cost">' + fmt(C.lightning[lLevel].cost) + ' <span class="cube">cubes</span></span>' +
+        '<button class="btn btn-success" data-buy-light="1"' + (canL ? '' : ' disabled') + '>Buy</button>';
     const lightCard = upgradeCard(
       lightningIcon(C.lightning[Math.min(lLevel, maxL - 1)].color),
-      'Lightning', lLevel, maxL, lightBody, lightCost, !lightMaxed && state.cubes >= C.lightning[lLevel].cost
+      'Lightning', lLevel, maxL, lightBody, lightCost, canL
     );
 
     // Fortune
     const maxFo = C.fortune.length;
     const foLevel = state.fortuneLevel;
     const fortuneMaxed = foLevel >= maxFo;
-    let fortuneBody, fortuneCost;
-    if (fortuneMaxed) {
-      const fo = C.fortune[maxFo - 1];
-      fortuneBody = '<span class="fx">+' + fo.pct + '% cubes</span> from every block.';
-      fortuneCost = '<span class="card-cost" style="color:var(--green)">MAX</span>';
-    } else {
-      const next = C.fortune[foLevel];
-      const can = state.cubes >= next.cost;
-      if (foLevel === 0) {
-        fortuneBody = 'Boost cube income by <span class="fx">+' + next.pct + '%</span>.';
-      } else {
-        const cur = C.fortune[foLevel - 1];
-        fortuneBody = '<span class="fx">+' + cur.pct + '% \u2192 +' + next.pct + '%</span> cube income.';
-      }
-      fortuneCost = '<span class="card-cost">' + fmt(next.cost) + ' <span class="cube">cubes</span></span>' +
-        '<button class="btn btn-success" data-buy-fortune="1"' + (can ? '' : ' disabled') + '>Buy</button>';
-    }
+    const curFo = foLevel > 0 ? C.fortune[foLevel - 1] : null;
+    const nextFo = fortuneMaxed ? null : C.fortune[foLevel];
+    const fortuneBody =
+      statLine('Income', curFo ? '+' + curFo.pct + '%' : null, nextFo ? '+' + nextFo.pct + '%' : null);
+    const canFo = !fortuneMaxed && state.cubes >= C.fortune[foLevel].cost;
+    const fortuneCost = fortuneMaxed
+      ? '<span class="card-cost" style="color:var(--green)">MAX</span>'
+      : '<span class="card-cost">' + fmt(C.fortune[foLevel].cost) + ' <span class="cube">cubes</span></span>' +
+        '<button class="btn btn-success" data-buy-fortune="1"' + (canFo ? '' : ' disabled') + '>Buy</button>';
     const fortuneCard = upgradeCard(
       fortuneIcon(C.fortune[Math.min(foLevel, maxFo - 1)].color),
-      'Fortune', foLevel, maxFo, fortuneBody, fortuneCost, !fortuneMaxed && state.cubes >= C.fortune[foLevel].cost
+      'Fortune', foLevel, maxFo, fortuneBody, fortuneCost, canFo
     );
 
     // Acid
     const maxA = C.acid.length;
     const aLevel = state.acidLevel;
     const acidMaxed = aLevel >= maxA;
-    let acidBody, acidCost;
-    if (acidMaxed) {
-      const a = C.acid[maxA - 1];
-      acidBody = 'Affected blocks take <span class="fx">+' + a.pct + '% damage</span> for ' + a.duration + 's.';
-      acidCost = '<span class="card-cost" style="color:var(--green)">MAX</span>';
-    } else {
-      const next = C.acid[aLevel];
-      const can = state.cubes >= next.cost;
-      if (aLevel === 0) {
-        acidBody = 'Soak blocks in acid: they take <span class="fx">+' + next.pct + '% damage</span> for ' + next.duration + 's.';
-      } else {
-        const cur = C.acid[aLevel - 1];
-        acidBody = '<span class="fx">+' + cur.pct + '% \u2192 +' + next.pct + '%</span> damage taken, ' + next.duration + 's.';
-      }
-      acidCost = '<span class="card-cost">' + fmt(next.cost) + ' <span class="cube">cubes</span></span>' +
-        '<button class="btn btn-success" data-buy-acid="1"' + (can ? '' : ' disabled') + '>Buy</button>';
-    }
+    const curA = aLevel > 0 ? C.acid[aLevel - 1] : null;
+    const nextA = acidMaxed ? null : C.acid[aLevel];
+    const acidBody =
+      statLine('Damage taken', curA ? '+' + curA.pct + '%' : null, nextA ? '+' + nextA.pct + '%' : null) +
+      statLine('Duration', curA ? curA.duration + 's' : null, nextA ? nextA.duration + 's' : null);
+    const canA = !acidMaxed && state.cubes >= C.acid[aLevel].cost;
+    const acidCost = acidMaxed
+      ? '<span class="card-cost" style="color:var(--green)">MAX</span>'
+      : '<span class="card-cost">' + fmt(C.acid[aLevel].cost) + ' <span class="cube">cubes</span></span>' +
+        '<button class="btn btn-success" data-buy-acid="1"' + (canA ? '' : ' disabled') + '>Buy</button>';
     const acidCard = upgradeCard(
       acidIcon(C.acid[Math.min(aLevel, maxA - 1)].color),
-      'Acid', aLevel, maxA, acidBody, acidCost, !acidMaxed && state.cubes >= C.acid[aLevel].cost
+      'Acid', aLevel, maxA, acidBody, acidCost, canA
     );
 
     // Explosion
     const maxE = C.explosion.length;
     const eLevel = state.explosionLevel;
     const explosionMaxed = eLevel >= maxE;
-    let explosionBody, explosionCost;
-    if (explosionMaxed) {
-      const e = C.explosion[maxE - 1];
-      explosionBody = Math.round(e.chance * 100) + '% chance to blast <span class="fx">pickaxe damage</span> to surrounding blocks.';
-      explosionCost = '<span class="card-cost" style="color:var(--green)">MAX</span>';
-    } else {
-      const next = C.explosion[eLevel];
-      const can = state.cubes >= next.cost;
-      if (eLevel === 0) {
-        explosionBody = Math.round(next.chance * 100) + '% chance on hit to explode, dealing <span class="fx">pickaxe damage</span> to neighbors.';
-      } else {
-        const cur = C.explosion[eLevel - 1];
-        explosionBody = Math.round(cur.chance * 100) + '% \u2192 <span class="fx">' + Math.round(next.chance * 100) + '%</span> chance to explode.';
-      }
-      explosionCost = '<span class="card-cost">' + fmt(next.cost) + ' <span class="cube">cubes</span></span>' +
-        '<button class="btn btn-success" data-buy-explosion="1"' + (can ? '' : ' disabled') + '>Buy</button>';
-    }
+    const curE = eLevel > 0 ? C.explosion[eLevel - 1] : null;
+    const nextE = explosionMaxed ? null : C.explosion[eLevel];
+    const explosionBody =
+      statLine('Chance', curE ? Math.round(curE.chance * 100) + '%' : null, nextE ? Math.round(nextE.chance * 100) + '%' : null) +
+      '<div>Damage: <span class="fx">pickaxe dmg</span> to neighbors</div>';
+    const canE = !explosionMaxed && state.cubes >= C.explosion[eLevel].cost;
+    const explosionCost = explosionMaxed
+      ? '<span class="card-cost" style="color:var(--green)">MAX</span>'
+      : '<span class="card-cost">' + fmt(C.explosion[eLevel].cost) + ' <span class="cube">cubes</span></span>' +
+        '<button class="btn btn-success" data-buy-explosion="1"' + (canE ? '' : ' disabled') + '>Buy</button>';
     const explosionCard = upgradeCard(
       explosionIcon(C.explosion[Math.min(eLevel, maxE - 1)].color),
-      'Explosion', eLevel, maxE, explosionBody, explosionCost, !explosionMaxed && state.cubes >= C.explosion[eLevel].cost
+      'Explosion', eLevel, maxE, explosionBody, explosionCost, canE
     );
 
     // Critical strike
     const maxCr = C.crit.length;
     const crLevel = state.critLevel;
     const critMaxed = crLevel >= maxCr;
-    let critBody, critCost;
-    if (critMaxed) {
-      const c = C.crit[maxCr - 1];
-      critBody = Math.round(c.chance * 100) + '% chance to deal <span class="fx">double damage</span>.';
-      critCost = '<span class="card-cost" style="color:var(--green)">MAX</span>';
-    } else {
-      const next = C.crit[crLevel];
-      const can = state.cubes >= next.cost;
-      if (crLevel === 0) {
-        critBody = Math.round(next.chance * 100) + '% chance to crit for <span class="fx">double damage</span>.';
-      } else {
-        const cur = C.crit[crLevel - 1];
-        critBody = Math.round(cur.chance * 100) + '% \u2192 <span class="fx">' + Math.round(next.chance * 100) + '%</span> crit chance (double damage).';
-      }
-      critCost = '<span class="card-cost">' + fmt(next.cost) + ' <span class="cube">cubes</span></span>' +
-        '<button class="btn btn-success" data-buy-crit="1"' + (can ? '' : ' disabled') + '>Buy</button>';
-    }
+    const curCr = crLevel > 0 ? C.crit[crLevel - 1] : null;
+    const nextCr = critMaxed ? null : C.crit[crLevel];
+    const critBody =
+      statLine('Chance', curCr ? Math.round(curCr.chance * 100) + '%' : null, nextCr ? Math.round(nextCr.chance * 100) + '%' : null) +
+      '<div>Damage: <span class="fx">2x</span></div>';
+    const canCr = !critMaxed && state.cubes >= C.crit[crLevel].cost;
+    const critCost = critMaxed
+      ? '<span class="card-cost" style="color:var(--green)">MAX</span>'
+      : '<span class="card-cost">' + fmt(C.crit[crLevel].cost) + ' <span class="cube">cubes</span></span>' +
+        '<button class="btn btn-success" data-buy-crit="1"' + (canCr ? '' : ' disabled') + '>Buy</button>';
     const critCard = upgradeCard(
       critIcon(C.crit[Math.min(crLevel, maxCr - 1)].color),
-      'Critical Strike', crLevel, maxCr, critBody, critCost, !critMaxed && state.cubes >= C.crit[crLevel].cost
+      'Critical Strike', crLevel, maxCr, critBody, critCost, canCr
     );
 
-    elUpgradeList.innerHTML = fireCard + lightCard + fortuneCard + acidCard + explosionCard + critCard;
+    elUpgradeList.innerHTML = acidCard + fireCard + lightCard + explosionCard + critCard + fortuneCard;
   }
 
   function renderShop() {
